@@ -761,7 +761,7 @@ async function handleLocalCopy() {
   }
   const copy = activeObject.toObject(PROPERTIES_TO_INCLUDE);
   if (copy.type.toLowerCase() === "activeselection") {
-    copy.getObjects().forEach((obj) => delete obj.id);
+    copy.objects.forEach((obj) => delete obj.id);
   } else {
     delete copy.id;
   }
