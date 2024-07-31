@@ -36,7 +36,6 @@ let canvas: Canvas;
 let documentRectangle: FabricObject;
 let ppi: number;
 
-let openedFilename: string | null = null;
 let canvasHistory: FabricHistory;
 
 // TODO: make this a little more elegant
@@ -53,7 +52,6 @@ const zoomOutButton = document.getElementById(
 const zoomFitButton = document.getElementById(
   "zoom-fit-button"
 ) as HTMLButtonElement;
-const fileNameBox = document.getElementById("file-name");
 const paperSettingsBox = document.getElementById("paper-settings-box");
 const paperWidthInput = document.getElementById(
   "input-paper-width"
@@ -89,9 +87,6 @@ async function main() {
   document.addEventListener("copy", handleLocalCopy);
   window.electronAPI.onLocalUndo(handleLocalUndo);
   window.electronAPI.onLocalRedo(handleLocalRedo);
-  window.electronAPI.onLocalZoomIn(handleLocalZoomIn);
-  window.electronAPI.onLocalZoomOut(handleLocalZoomOut);
-  window.electronAPI.onLocalZoomFit(handleLocalZoomFit);
 
   canvas.requestRenderAll();
 }
@@ -148,8 +143,6 @@ async function loadSnapshotData(loadedData: any) {
     setEditableObjectProperties(object);
   }
 
-  saveButton.disabled = true;
-
   setInitialPaperValues();
   addCanvasEventListeners();
   addGrid();
@@ -204,10 +197,6 @@ async function createNewCanvas() {
   canvas.add(documentRectangle);
   canvas.centerObject(documentRectangle);
   canvas.clipPath = documentRectangle;
-
-  openedFilename = null;
-  fileNameBox.innerHTML = "Untitled";
-  saveButton.disabled = true;
 
   setInitialPaperValues();
   addCanvasEventListeners();
@@ -290,9 +279,6 @@ function createGridGroup(rect) {
 }
 
 function onDocEdit() {
-  saveButton.disabled = false;
-  const name = openedFilename ? openedFilename : "Untitled";
-  fileNameBox.innerHTML = `${name}*`;
 }
 
 // From vue-fabric-editor
@@ -386,8 +372,6 @@ saveButton.addEventListener("click", async () => {
   document.body.appendChild(downloadAnchorNode); // required for firefox
   downloadAnchorNode.click();
   downloadAnchorNode.remove();
-
-  saveButton.disabled = true;
 });
 
 async function openJsonFile() {
@@ -424,7 +408,6 @@ loadButton.addEventListener("click", async () => {
 
 const newButton = document.getElementById("new-canvas");
 newButton.addEventListener("click", async () => {
-  await window.electronAPI.startNewUnsavedFile();
   removeCanvasEventListeners();
   await createNewCanvas();
   zoomToFitDocument();
@@ -458,8 +441,14 @@ printButton.addEventListener("click", async () => {
   };
   const dataUrl = clonedCanvas.toDataURL(options);
   const dataUrlAdjustedDPI = changeDpiDataUrl(dataUrl, ppi);
-  await window.electronAPI.downloadFile(dataUrlAdjustedDPI);
+  const downloadAnchorNode = document.createElement('a');
+  downloadAnchorNode.setAttribute("href",     dataUrlAdjustedDPI);
+  downloadAnchorNode.setAttribute("download", "printable-file.png");
+  document.body.appendChild(downloadAnchorNode); // required for firefox
+  downloadAnchorNode.click();
+  downloadAnchorNode.remove();
 });
+
 
 let altKeyPressed = false;
 let spacebarPressed = false;
