@@ -81,16 +81,12 @@ const objectYInput = document.getElementById(
 
 async function main() {
   createNewCanvas();
-  const loadedData = await window.electronAPI.loadLastSaveIfAny();
-  if (loadedData) {
-    await loadSnapshotData(loadedData);
-  }
   setCanvasDimensionsToWindowSize();
   zoomToFitDocument();
 
   window.addEventListener("resize", onWindowResize);
   document.addEventListener("paste", onPaste);
-  window.electronAPI.onLocalCopy(handleLocalCopy);
+  document.addEventListener("copy", handleLocalCopy);
   window.electronAPI.onLocalUndo(handleLocalUndo);
   window.electronAPI.onLocalRedo(handleLocalRedo);
   window.electronAPI.onLocalZoomIn(handleLocalZoomIn);
@@ -630,13 +626,33 @@ document.addEventListener("keyup", function (event) {
   }
 });
 
+async function openFile() {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = "image/*"
+    input.addEventListener("change", () => {
+      const file = input.files?.item(0);
+      if (!file) {
+        resolve(null);
+      }
+      const fileReader = new FileReader();
+      fileReader.addEventListener('load', () => {
+        resolve(fileReader.result as string)
+      })
+      fileReader.readAsDataURL(file);
+    })
+    input.click();
+  })
+}
+
 const addImageButton = document.getElementById("add-image");
 addImageButton.addEventListener("click", async () => {
-  const base64 = await window.electronAPI.openFile();
+  const base64 = await openFile();
   if (!base64) {
     return; // canceled
   }
-  const url = `data:image/png;base64,${base64}`;
+  const url = base64;
   await addImageToCanvas(url);
 });
 
