@@ -85,8 +85,6 @@ async function main() {
   window.addEventListener("resize", onWindowResize);
   document.addEventListener("paste", onPaste);
   document.addEventListener("copy", handleLocalCopy);
-  window.electronAPI.onLocalUndo(handleLocalUndo);
-  window.electronAPI.onLocalRedo(handleLocalRedo);
 
   canvas.requestRenderAll();
 }
@@ -585,7 +583,13 @@ function moveSelectedByArrow(type: ArrowKeyString) {
 }
 
 document.addEventListener("keydown", function (event) {
-  if (isArrowKey(event.key)) {
+  if (event.key.toLowerCase() === "z" &&  (event.metaKey || event.ctrlKey) && event.shiftKey ) {
+    event.preventDefault();
+    handleLocalRedo();
+  } else if ((event.metaKey || event.ctrlKey) && event.key === "z") {
+    event.preventDefault();
+    handleLocalUndo();
+  } else if (isArrowKey(event.key)) {
     moveSelectedByArrow(event.key);
   } else if (event.key == "Shift") {
     shiftPressed = true;
