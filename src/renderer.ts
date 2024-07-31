@@ -92,8 +92,6 @@ async function main() {
   window.electronAPI.onLocalZoomIn(handleLocalZoomIn);
   window.electronAPI.onLocalZoomOut(handleLocalZoomOut);
   window.electronAPI.onLocalZoomFit(handleLocalZoomFit);
-  window.electronAPI.onRequestSaveCanvas(handleSaveFromMain);
-  window.electronAPI.onRequestLoadCanvas(handleLoadFromMain);
 
   canvas.requestRenderAll();
 }
@@ -138,8 +136,8 @@ async function loadSnapshotData(loadedData: any) {
     removeCanvasEventListeners();
   }
 
-  ppi = loadedData.snapshot.ppi;
-  canvas = await canvas.loadFromJSON(loadedData.snapshot.canvasData);
+  ppi = loadedData.ppi;
+  canvas = await canvas.loadFromJSON(loadedData.canvasData);
   documentRectangle = canvas
     .getObjects()
     .find((obj) => obj.id === BACKGROUND_RECT_ID);
@@ -150,8 +148,6 @@ async function loadSnapshotData(loadedData: any) {
     setEditableObjectProperties(object);
   }
 
-  openedFilename = loadedData.openedFileName;
-  fileNameBox.innerHTML = openedFilename;
   saveButton.disabled = true;
 
   setInitialPaperValues();
@@ -379,31 +375,44 @@ paperSettingsButton.addEventListener("click", () => {
 });
 
 saveButton.addEventListener("click", async () => {
-  if (!openedFilename) {
-    const result = await window.electronAPI.startNewSaveFile();
-    if (!result || result.canceled) {
-      // save cancelled
-      return;
-    }
-    openedFilename = result.openedFileName;
-    fileNameBox.innerHTML = openedFilename;
-    saveButton.disabled = true;
-  }
-
   const data = {
     ppi,
     canvasData: canvas.toObject(PROPERTIES_TO_INCLUDE),
   };
-  const saveResult = await window.electronAPI.saveToFile(data);
-  if (saveResult) {
-    fileNameBox.innerHTML = openedFilename;
-    saveButton.disabled = true;
-  }
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data));
+  const downloadAnchorNode = document.createElement('a');
+  downloadAnchorNode.setAttribute("href",     dataStr);
+  downloadAnchorNode.setAttribute("download", "printer-pal-file.json");
+  document.body.appendChild(downloadAnchorNode); // required for firefox
+  downloadAnchorNode.click();
+  downloadAnchorNode.remove();
+
+  saveButton.disabled = true;
 });
+
+async function openJsonFile() {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = "application/json"
+    input.addEventListener("change", () => {
+      const file = input.files?.item(0);
+      if (!file) {
+        resolve(null);
+      }
+      const fileReader = new FileReader();
+      fileReader.addEventListener('load', () => {
+        resolve(JSON.parse(fileReader.result as string))
+      })
+      fileReader.readAsText(file as File);
+    })
+    input.click();
+  })
+}
 
 const loadButton = document.getElementById("load-canvas");
 loadButton.addEventListener("click", async () => {
-  const result = await window.electronAPI.loadSaveFile();
+  const result = await openJsonFile();
   if (!result) {
     return; // canceled
   }
@@ -640,7 +649,7 @@ async function openFile() {
       fileReader.addEventListener('load', () => {
         resolve(fileReader.result as string)
       })
-      fileReader.readAsDataURL(file);
+      fileReader.readAsDataURL(file as File);
     })
     input.click();
   })
@@ -787,25 +796,6 @@ function handleLocalZoomOut() {
 
 function handleLocalZoomFit() {
   onZoomFitButtonClicked();
-}
-
-async function handleSaveFromMain(fileName) {
-  const data = {
-    ppi,
-    canvasData: canvas.toObject(PROPERTIES_TO_INCLUDE),
-  };
-  const saveResult = await window.electronAPI.saveToFile(data);
-  if (saveResult) {
-    fileNameBox.innerHTML = fileName;
-    saveButton.disabled = true;
-  }
-}
-
-async function handleLoadFromMain(loadData) {
-  await loadSnapshotData(loadData);
-  setInitialPaperValues();
-  zoomToFitDocument();
-  canvas.requestRenderAll();
 }
 
 function renderHorizontalScrollbar() {}
